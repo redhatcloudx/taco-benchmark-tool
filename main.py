@@ -20,16 +20,16 @@ DEFAULT_REQUEST_TIMEOUT = 300
 
 
 def sample_gpu_utilization(
-        samples: List[int], 
-        stop_event: threading.Event, 
+        samples: List[int],
+        stop_event: threading.Event,
         interval: float
 ) -> None:
     while not stop_event.is_set():
         try:
             output = subprocess.check_output(
                 [
-                    "nvidia-smi", 
-                    "--query-gpu=utilization.gpu", 
+                    "nvidia-smi",
+                    "--query-gpu=utilization.gpu",
                     "--format=csv,noheader,nounits"
                 ]
             )
@@ -45,20 +45,19 @@ def load_prompts(prompt_file: str) -> List[str]:
 
 
 def run_inference(
-        prompt: str, 
-        model_name: str, 
-        max_tokens: int, 
-        base_url: str, 
+        prompt: str,
+        model_name: str,
+        max_tokens: int,
+        base_url: str,
         request_timeout: int
 ) -> dict[str, Any]:
     payload = {
-        "model": model_name,
-        "message": [{"role": "user", "content": prompt}],
+        "prompt": prompt,
         "max_tokens": max_tokens
     }
 
     req = request.Request(
-        f"{base_url}/chat/completions",
+        f"{base_url}/completions",
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
@@ -133,9 +132,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL_NAME, help="Name of the huggingface model served by vLLM")
     parser.add_argument("--prompt-file", default=DEFAULT_PROMPT_FILE, help="Path to file with prompt workload. Each line is turned into a prompt.")
     parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max number of completion tokens per prompt.")
-    parser.add_argument("--gpu-interval", type=float, default=DEFAULT_GPU_SAMPLING_INTERVAL_S, help="Interval in which to sa,ple GPU utilization (seconds).")
+    parser.add_argument("--gpu-sampling-interval", type=float, default=DEFAULT_GPU_SAMPLING_INTERVAL_S, help="Interval in which to sa,ple GPU utilization (seconds).")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Base URL for RHEL AI inference server.")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_REQUEST_TIMEOUT, help="Specify request timeout for prompting.")
+    parser.add_argument("--request-timeout", type=int, default=DEFAULT_REQUEST_TIMEOUT, help="Specify request timeout for prompting.")
     return parser.parse_args()
 
 
