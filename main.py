@@ -17,6 +17,7 @@ DEFAULT_MAX_TOKENS = 256
 DEFAULT_GPU_SAMPLING_INTERVAL_S = 0.5
 DEFAULT_BASE_URL = os.getenv("RHEL_AI_BASE_URL", "http://127.0.0.1:8000/v1")
 DEFAULT_REQUEST_TIMEOUT = 300
+DEFAULT_BATCH_SIZE = 1
 
 
 def sample_gpu_utilization(
@@ -45,14 +46,14 @@ def load_prompts(prompt_file: str) -> List[str]:
 
 
 def run_inference(
-        prompt: str,
+        prompts: List[str],
         model_name: str,
         max_tokens: int,
         base_url: str,
         request_timeout: int
 ) -> dict[str, Any]:
     payload = {
-        "prompt": prompt,
+        "prompt": prompts if len(prompts) > 1 else prompts[0],
         "max_tokens": max_tokens
     }
 
@@ -84,12 +85,16 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     )
     gpu_thread.start()
     start_time = time.time()
+    batches = [
+        prompts[i:i + args.batch_size]
+        for i in range(0, len(prompts), args.batch_size)
+    ]
     responses: List[dict[str, Any]]= []
     failures: List[dict[str, Any]]= []
-    for idx, prompt in enumerate(prompts, start=1):
+    for idx, batch in enumerate(batches, start=1):
         try:
             responses.append(run_inference(
-                prompt=prompt,
+                prompts=batch,
                 model_name=args.model,
                 max_tokens=args.max_tokens,
                 base_url=args.base_url,
@@ -114,6 +119,8 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "model": args.model,
         "num_prompts": len(prompts),
+        "batch_size": args.batch_size,
+        "num_batches": len(batches),
         "total_generated_tokens": total_generated_tokens,
         "duration": duration,
         "tokens_per_sec": tokens_per_sec,
@@ -135,6 +142,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpu-sampling-interval", type=float, default=DEFAULT_GPU_SAMPLING_INTERVAL_S, help="Interval in which to sa,ple GPU utilization (seconds).")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Base URL for RHEL AI inference server.")
     parser.add_argument("--request-timeout", type=int, default=DEFAULT_REQUEST_TIMEOUT, help="Specify request timeout for prompting.")
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Number of prompts to send in a single request.")
     return parser.parse_args()
 
 
